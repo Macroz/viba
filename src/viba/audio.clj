@@ -33,8 +33,3 @@
                 (.close source-line))
             (recur))))
       chan-copy2)))
-
-#_(play-sound "/home/markku/dev/loxone/resources/music/ambient.wav")
-
-#_(async/go (println (<! (async/into [] (async/take 2 (play-sound "/home/markku/dev/loxone/resources/music/ambient.wav"))))))
-
