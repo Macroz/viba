@@ -33,3 +33,10 @@
                 (.close source-line))
             (recur))))
       chan-copy2)))
+
+(defn play-chunk [^SourceDataLine line ^bytes buffer]
+  (let [buffer-size (alength buffer)]
+    (doto line
+      (.write buffer 0 buffer-size)
+      (.drain)
+      )))
