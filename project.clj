@@ -6,4 +6,5 @@
   :dependencies [[org.clojure/clojure "1.7.0"]
                  [org.clojure/core.async "0.2.371"]
                  [macroz/brute "0.1.0"]
+                 [macroz/valo "0.1.0"]
                  [javax.media/jmf "2.1.1e"]])
