@@ -3,20 +3,30 @@
   (:require [viba.core :as viba])
   (:require [viba.audio :as audio])
   (:require [viba.ops :as ops])
+  (:require [valo.hue :as hue])
   (:require [clojure.core.async :as async :refer [<! go-loop]])
   (:import [javax.sound.sampled AudioSystem DataLine AudioFormat SourceDataLine]))
 
 (def transpose (partial apply map list))
 
+(def abs #(Math/abs %))
+
+(def last-avg (atom 0))
+
 (defn analyze-chunk [chunk]
   (try
     (let [buffer (:buffer chunk)
           channels (transpose (partition 2 buffer))
-          channels (map #(ops/average 10 %) channels)
+          channels (map #(ops/average 50 %) channels)
           buffer (apply interleave channels)
-          buffer (byte-array buffer)]
-      (println "analyzed" (:i chunk))
-      (assoc-in chunk [:buffer] buffer))
+          buffer (byte-array buffer)
+          avg (/ (reduce + 0.0 (map abs (first channels))) (/ (alength buffer) 2))
+          light (> avg @last-avg)]
+      (reset! last-avg avg)
+      (println "analyzed" (:i chunk) light)
+      (assoc chunk
+             ;;:buffer buffer
+             :light light))
     (catch Throwable t
       (println t))))
 
@@ -34,18 +44,32 @@
 (defn close-player [player]
   (.close (:line player)))
 
-(defn play-chunk [player chunk]
+(def light-last-state (atom false))
+
+(defn play-chunk [player hue chunk]
   (try
+    (when (not= @light-last-state (:light chunk))
+      (reset! light-last-state (:light chunk))
+      (if (:light chunk)
+        (.set-light-hsl hue 6 0.0 100.0 50.0)
+        (.set-light-hsl hue 6 0.0 0.0 50.0)))
     (audio/play-chunk (:line player) (:buffer chunk))
     (catch Throwable t
       (println t)))
   chunk)
 
+(defn init-hue []
+  (let [hue (hue/make-hue)]
+    (doto hue
+      (.set-server "http://192.168.0.101")
+      (.set-user "markkurontu" nil))))
+
 (defn test-pipe [filename]
   (let [player (init-player)
+        hue (init-hue)
         read (audio/read-file filename)
         analyze (async/map analyze-chunk [read] 16)
-        play (async/map (partial play-chunk player) [analyze] 1)]
+        play (async/map (partial play-chunk player hue) [analyze] 1)]
     (go-loop []
       (if-let [x (<! play)]
         (do
