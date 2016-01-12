@@ -16,27 +16,33 @@
     out))
 
 (defn read-file [filename]
-  (let [^File sound-file (File. filename)
-        ^AudioInputStream audio-stream (AudioSystem/getAudioInputStream sound-file)
-        ^AudioFormat audio-format (.getFormat audio-stream)
-        ^DataLine$Info info (javax.sound.sampled.DataLine$Info. SourceDataLine audio-format)
-        ^SourceDataLine source-line (AudioSystem/getLine info)]
-    (.open source-line audio-format)
-    (.start source-line)
-    (let [chunk-chan (mult (read-chunks audio-stream))
-          chan-copy1 (tap chunk-chan (chan))
-          chan-copy2 (tap chunk-chan (chan))]
-      (go-loop []
-        (let [x (<! chan-copy1)]
-          (if-not x
-            (do (.drain source-line)
-                (.close source-line))
-            (recur))))
-      chan-copy2)))
+  (try
+    (let [^File sound-file (File. filename)
+          ^AudioInputStream audio-stream (AudioSystem/getAudioInputStream sound-file)
+          ^AudioFormat audio-format (.getFormat audio-stream)
+          ^DataLine$Info info (javax.sound.sampled.DataLine$Info. SourceDataLine audio-format)
+          ^SourceDataLine source-line (AudioSystem/getLine info)]
+      (.open source-line audio-format)
+      (.start source-line)
+      (let [chunk-chan (mult (read-chunks audio-stream))
+            chan-copy1 (tap chunk-chan (chan))
+            chan-copy2 (tap chunk-chan (chan))]
+        (go-loop []
+          (let [x (<! chan-copy1)]
+            (if-not x
+              (do (.drain source-line)
+                  (.close source-line))
+              (recur))))
+        chan-copy2))
+    (catch Throwable t
+      (println t))))
 
 (defn play-chunk [^SourceDataLine line ^bytes buffer]
-  (let [buffer-size (alength buffer)]
-    (doto line
-      (.write buffer 0 buffer-size)
-      (.drain)
-      )))
+  (try
+    (let [buffer-size (alength buffer)]
+      (doto line
+        (.write buffer 0 buffer-size)
+        ;;(.drain)
+        ))
+    (catch Throwable t
+      (println t))))
