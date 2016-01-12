@@ -7,7 +7,7 @@
 (defn read-chunks [^AudioInputStream audio-stream]
   (let [out (chan 16)]
     (go-loop [i 0]
-      (let [^bytes buffer (byte-array 44100)
+      (let [^bytes buffer (byte-array 4096)
             bytes-read (int (.read audio-stream buffer 0 (alength buffer)))]
         (if (= -1 bytes-read)
           (close! out)
